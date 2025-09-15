@@ -5,6 +5,7 @@ import Header from "./Header";
 import ChatArea from "./ChatArea";
 import EngineerStatus from "./EngineerStatus";
 import MaintenanceScreen from "./MaintenanceScreen";
+import { useChatMutation } from "@/hooks/useChat";
 
 // Main App Component
 const AIIndianApp = () => {
@@ -20,6 +21,30 @@ const AIIndianApp = () => {
   const [isInMaintenance, setIsInMaintenance] = useState(false);
   const [indianState, setIndianState] = useState("typing"); // typing, thinking, tired, sleeping
   const [messageCount, setMessageCount] = useState(0);
+
+  // Chat API mutation
+  const chatMutation = useChatMutation({
+    onSuccess: (response) => {
+      const apiMessage = {
+        text: response.message,
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, apiMessage]);
+      setIndianState("typing");
+    },
+    onError: (error) => {
+      // APIエラー時はフォールバック応答を表示
+      const fallbackMessage = {
+        text: getIndianResponse(inputValue),
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, fallbackMessage]);
+      setIndianState("typing");
+      console.error('Chat API error:', error);
+    },
+  });
 
   // 返答パターン
   const getIndianResponse = (userMessage: string) => {
@@ -72,14 +97,23 @@ const AIIndianApp = () => {
       return;
     }
 
-    // 即座に返答
-    const response = {
-      text: getIndianResponse(currentInput),
-      isUser: false,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, response]);
-    setIndianState("typing");
+    // Chat API を呼び出し
+    try {
+      chatMutation.mutate({
+        message: currentInput,
+        conversationId: 'indian-chat', // 会話IDを設定
+      });
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // エラー時はフォールバック応答を表示
+      const response = {
+        text: getIndianResponse(currentInput),
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, response]);
+      setIndianState("typing");
+    }
   };
 
   const handleKeyPress = (e: { key: string }) => {
@@ -118,6 +152,7 @@ const AIIndianApp = () => {
           handleKeyPress={handleKeyPress}
           isInMaintenance={isInMaintenance}
           messageCount={messageCount}
+          isLoading={chatMutation.isPending}
         />
 
         <EngineerStatus indianState={indianState} fatigue={fatigue} />
