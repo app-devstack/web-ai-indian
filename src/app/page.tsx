@@ -1,5 +1,4 @@
-import Image from "next/image";
-import HomeScreen from "@/features/HomeScreen"
+import HomeScreen from "@/features/HomeScreen";
 
 export default function Home() {
   return <HomeScreen />;
