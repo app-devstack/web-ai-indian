@@ -1,5 +1,6 @@
 import React, { KeyboardEvent, useEffect, useRef } from "react";
 import ChatMessage, { ChatMessageType } from "./ChatMessage";
+import { Button } from "@/components/ui/button";
 
 export type ChatAreaProps = {
   messages: ChatMessageType[];
@@ -9,6 +10,7 @@ export type ChatAreaProps = {
   handleKeyPress: (e: KeyboardEvent) => void;
   isInMaintenance: boolean;
   messageCount: number;
+  isLoading?: boolean;
 };
 
 const ChatArea = ({
@@ -19,6 +21,7 @@ const ChatArea = ({
   handleKeyPress,
   isInMaintenance,
   messageCount,
+  isLoading = false,
 }: ChatAreaProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -50,8 +53,7 @@ const ChatArea = ({
             type="text"
             value={inputValue}
             onChange={(e) => {
-              console.log(e.target);
-              setInputValue((e.target as HTMLInputElement)?.value || "");
+              setInputValue(e.target?.value || "");
             }}
             onKeyPress={handleKeyPress}
             placeholder="Ask AI Indian anything..."
@@ -59,14 +61,14 @@ const ChatArea = ({
             disabled={isInMaintenance}
             style={{ boxShadow: "0 2px 8px -2px rgba(0, 0, 0, 0.04)" }}
           />
-          <button
+          <Button
             onClick={handleSendMessage}
-            disabled={isInMaintenance || inputValue.trim() === ""}
-            className="bg-gray-600 text-white px-8 py-3 rounded-3xl hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium"
+            disabled={isInMaintenance || inputValue.trim() === "" || isLoading}
+            className="px-8 py-3 rounded-3xl text-sm font-medium"
             style={{ boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.08)" }}
           >
-            Send
-          </button>
+            {isLoading ? "Sending..." : "Send"}
+          </Button>
         </div>
         <div className="text-xs text-gray-500 mt-3">
           Messages sent: {messageCount} | Status: {isInMaintenance ? "Maintenance" : "Active"}
