@@ -1,38 +1,52 @@
 import {
-  ContentListUnion,
-  FunctionCallingConfigMode,
   GoogleGenAI,
   FunctionDeclaration,
   Content,
-  GenerateContentConfig,
-  GenerateContentResponse,
   FunctionCall,
   FunctionResponse,
+  // FunctionCallingConfigMode,
+  GenerateContentConfig,
+  ToolListUnion,
 } from "@google/genai";
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+const AI_MODEL = "gemini-2.0-flash-001";
 
 export interface GeminiConfig {
   apiKey?: string;
   model?: string;
   systemPrompt?: string;
-  functionDeclarations?: FunctionDeclaration[];
-  functionCallingMode?: FunctionCallingConfigMode;
-}
-
-export interface ChatMessage {
-  role: "user" | "model";
-  content: string;
 }
 
 export class GeminiClient {
   private ai: GoogleGenAI;
   private model: string;
   private systemPrompt?: string;
-  private functionDeclarations?: FunctionDeclaration[];
-  private functionCallingMode: FunctionCallingConfigMode;
-  private chatHistory: Content[] = [];
+
+  // クライアント内で事前定義された関数設定
+  private functionDeclarations: FunctionDeclaration[] = [
+    // 例: 天気取得関数
+    // {
+    //   name: "getWeather",
+    //   description: "指定した場所の天気情報を取得する",
+    //   parameters: {
+    //     type: "object",
+    //     properties: {
+    //       location: {
+    //         type: "string",
+    //         description: "天気を知りたい場所"
+    //       }
+    //     },
+    //     required: ["location"]
+    //   }
+    // }
+  ];
+
+  // private functionCallingMode: FunctionCallingConfigMode = FunctionCallingConfigMode.AUTO;
 
   constructor(config: GeminiConfig = {}) {
-    const apiKey = config.apiKey || process.env.GEMINI_API_KEY;
+    const apiKey = config.apiKey || GEMINI_API_KEY;
 
     if (!apiKey) {
       throw new Error(
@@ -41,154 +55,31 @@ export class GeminiClient {
     }
 
     this.ai = new GoogleGenAI({ apiKey });
-    this.model = config.model || "gemini-2.0-flash-001";
+    this.model = config.model || AI_MODEL;
     this.systemPrompt = config.systemPrompt;
-    this.functionDeclarations = config.functionDeclarations;
-    this.functionCallingMode = config.functionCallingMode || FunctionCallingConfigMode.AUTO;
   }
 
-  /**
-   * システムプロンプトを設定
-   */
-  setSystemPrompt(prompt: string): void {
-    this.systemPrompt = prompt;
-  }
+  // ========================================================
+  // Function Public Methods
+  // ========================================================
 
   /**
-   * 関数宣言を設定
+   * メッセージを送信してAI応答を取得（関数呼び出し自動処理）
    */
-  setFunctionDeclarations(declarations: FunctionDeclaration[]): void {
-    this.functionDeclarations = declarations;
-  }
-
-  /**
-   * チャット履歴をクリア
-   */
-  clearHistory(): void {
-    this.chatHistory = [];
-  }
-
-  /**
-   * チャット履歴を取得
-   */
-  getHistory(): Content[] {
-    return this.chatHistory;
-  }
-
-  /**
-   * 単発の質問応答
-   */
-  async ask(question: string): Promise<string> {
+  public async generateResponse(message: string, history?: Content[]): Promise<string> {
     try {
-      const contents: Content[] = [];
+      const contents = [] as Content[];
+      // const tools = [] as ToolListUnion;
 
-      // システムプロンプトがあれば追加
-      if (this.systemPrompt) {
-        contents.push({
-          role: "user",
-          parts: [{ text: this.systemPrompt }],
-        });
-      }
+      // if (this.systemPrompt) {
+      //   contents.push({
+      //     role: "user",
+      //     parts: [{ text: this.systemPrompt }],
+      //   });
+      // }
 
-      contents.push({
-        role: "user",
-        parts: [{ text: question }],
-      });
-
-      const config: GenerateContentConfig = {};
-
-      // 関数宣言があれば設定
-      if (this.functionDeclarations && this.functionDeclarations.length > 0) {
-        config.tools = [{ functionDeclarations: this.functionDeclarations }];
-        config.toolConfig = {
-          functionCallingConfig: {
-            mode: this.functionCallingMode,
-          },
-        };
-      }
-
-      const response = await this.ai.models.generateContent({
-        model: this.model,
-        contents,
-        config,
-      });
-
-      return response.text || "";
-    } catch (error) {
-      console.error("Error in ask:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * チャット形式で会話（履歴を保持）
-   */
-  async chat(message: string): Promise<string> {
-    try {
-      // ユーザーメッセージを履歴に追加
-      this.chatHistory.push({
-        role: "user",
-        parts: [{ text: message }],
-      });
-
-      const contents: Content[] = [...this.chatHistory];
-
-      // システムプロンプトがあれば先頭に追加
-      if (this.systemPrompt) {
-        contents.unshift({
-          role: "user",
-          parts: [{ text: this.systemPrompt }],
-        });
-      }
-
-      const config: GenerateContentConfig = {};
-
-      // 関数宣言があれば設定
-      if (this.functionDeclarations && this.functionDeclarations.length > 0) {
-        config.tools = [{ functionDeclarations: this.functionDeclarations }];
-        config.toolConfig = {
-          functionCallingConfig: {
-            mode: this.functionCallingMode,
-          },
-        };
-      }
-
-      const response = await this.ai.models.generateContent({
-        model: this.model,
-        contents,
-        config,
-      });
-
-      const responseText = response.text || "";
-
-      // レスポンスを履歴に追加
-      this.chatHistory.push({
-        role: "model",
-        parts: [{ text: responseText }],
-      });
-
-      return responseText;
-    } catch (error) {
-      console.error("Error in chat:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * 関数呼び出しを含む高度な生成
-   */
-  async generateWithFunctions(
-    message: string,
-    functionHandler?: (functionCall: FunctionCall) => Promise<FunctionResponse>
-  ): Promise<string> {
-    try {
-      const contents: Content[] = [];
-
-      if (this.systemPrompt) {
-        contents.push({
-          role: "user",
-          parts: [{ text: this.systemPrompt }],
-        });
+      if (history && history.length > 0) {
+        contents.push(...history);
       }
 
       contents.push({
@@ -196,15 +87,14 @@ export class GeminiClient {
         parts: [{ text: message }],
       });
 
-      const config: GenerateContentConfig = {};
+      const config: GenerateContentConfig = {
+        systemInstruction: this.systemPrompt,
+      };
 
-      if (this.functionDeclarations && this.functionDeclarations.length > 0) {
-        config.tools = [{ functionDeclarations: this.functionDeclarations }];
-        config.toolConfig = {
-          functionCallingConfig: {
-            mode: this.functionCallingMode,
-          },
-        };
+      // functionDeclarationsが存在する場合のみtoolsを設定
+      if (this.functionDeclarations.length > 0) {
+        const tools = [{ functionDeclarations: this.functionDeclarations }] satisfies ToolListUnion;
+        config.tools = tools;
       }
 
       const response = await this.ai.models.generateContent({
@@ -213,10 +103,10 @@ export class GeminiClient {
         config,
       });
 
-      // 関数呼び出しがある場合
-      if (response.functionCalls?.[0] && functionHandler) {
+      // 関数呼び出しがある場合は自動処理
+      if (response.functionCalls?.[0]) {
         const functionCall = response.functionCalls[0];
-        const functionResponse = await functionHandler(functionCall);
+        const functionResponse = await this.handleFunctionCall(functionCall);
 
         // 関数の結果を含めて最終応答を生成
         const finalResponse = await this.ai.models.generateContent({
@@ -234,30 +124,32 @@ export class GeminiClient {
 
       return response.text || "";
     } catch (error) {
-      console.error("Error in generateWithFunctions:", error);
+      console.error("Error generating response:", error);
       throw error;
     }
   }
 
-  /**
-   * カスタム設定でコンテンツ生成
-   */
-  async generateContent(params: {
-    model?: string;
-    contents: ContentListUnion;
-    config?: GenerateContentConfig;
-  }): Promise<GenerateContentResponse> {
-    try {
-      const request = {
-        model: params.model || this.model,
-        contents: params.contents,
-        config: params.config,
-      };
+  // ========================================================
+  // Function Private Methods
+  // ========================================================
 
-      return await this.ai.models.generateContent(request);
-    } catch (error) {
-      console.error("Error in generateContent:", error);
-      throw error;
+  /**
+   * 事前定義された関数ハンドラー
+   */
+  private async handleFunctionCall(functionCall: FunctionCall): Promise<FunctionResponse> {
+    const { name } = functionCall;
+
+    switch (name) {
+      // case "getWeather":
+      //   return {
+      //     name: "getWeather",
+      //     response: {
+      //       weather: `${args.location}の天気は晴れです`
+      //     }
+      //   };
+
+      default:
+        throw new Error(`Unknown function: ${name}`);
     }
   }
 }

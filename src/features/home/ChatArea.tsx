@@ -63,7 +63,7 @@ const ChatArea = ({
           />
           <Button
             onClick={handleSendMessage}
-            disabled={isInMaintenance || inputValue.trim() === "" || isLoading}
+            // disabled={isInMaintenance || inputValue.trim() === "" || isLoading}
             className="px-8 py-3 rounded-3xl text-sm font-medium"
             style={{ boxShadow: "0 4px 12px -2px rgba(0, 0, 0, 0.08)" }}
           >
