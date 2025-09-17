@@ -3,9 +3,6 @@ import { ChatRequest, ChatResponse, ChatError } from "@/types/chat";
 import { createGeminiClient } from "@/lib/GeminiClient";
 import { uuidV7 } from "@/lib/uuid";
 
-// デフォルトのシステムプロンプト
-const DEFAULT_SYSTEM_PROMPT = `You are an AI Indian software engineer with a distinctive speaking style. You frequently use words like "actually," "basically," and "definitely." You're knowledgeable, helpful, and have a characteristic way of explaining things. You often reference your experience working on similar projects and discussing with colleagues. Always maintain a professional but friendly tone with the Indian English speaking pattern.`;
-
 export async function POST(request: NextRequest) {
   try {
     const body: ChatRequest = await request.json();
@@ -18,7 +15,7 @@ export async function POST(request: NextRequest) {
     // AI応答を生成
     const conversationId = body.conversationId || "default";
 
-    const client = createGeminiClient({ systemPrompt: DEFAULT_SYSTEM_PROMPT });
+    const client = createGeminiClient();
     const aiResponse = await client.generateResponse(body.message);
 
     console.log("AI Response:", aiResponse);

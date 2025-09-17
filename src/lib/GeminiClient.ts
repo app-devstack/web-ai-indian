@@ -8,6 +8,7 @@ import {
   GenerateContentConfig,
   ToolListUnion,
 } from "@google/genai";
+import { SYSTEM_PROMPT } from "./ai/systemPrompts";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -56,7 +57,7 @@ export class GeminiClient {
 
     this.ai = new GoogleGenAI({ apiKey });
     this.model = config.model || AI_MODEL;
-    this.systemPrompt = config.systemPrompt;
+    this.systemPrompt = config.systemPrompt || SYSTEM_PROMPT
   }
 
   // ========================================================
